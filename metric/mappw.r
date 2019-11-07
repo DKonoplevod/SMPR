@@ -68,7 +68,7 @@ pw <- function(xl, z, k, h)
   ddsstt <- dstFunc(xl, z)
   n <- dim(orderedXl)[2] - 1
   for(i in 1:k){
-    orderedXl[i, 4] <- kernelQ(ddsstt[i]/h)
+    orderedXl[i, 4] <- kernelEP(ddsstt[i]/h)
   }
   types <- c("setosa", "versicolor", "virginica")
   mat <- matrix(data=0, nrow=1, ncol=3)
