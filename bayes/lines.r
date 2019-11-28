@@ -4,10 +4,10 @@ drawLines <- function(center, cv) {
   det <- det(cv)
   cv <- solve(cv)
   
-  a <- cv[2, 2]
-  b <- -cv[1, 2]
-  c <- -cv[2, 1]
-  d <- cv[1, 1]
+  a <- cv[1, 1]
+  b <- cv[1, 2]
+  c <- cv[2, 1]
+  d <- cv[2, 2]
   
   x0 <- center[1]
   y0 <- center[2]
