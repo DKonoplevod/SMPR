@@ -11,6 +11,9 @@
 - [Байесовские алгоритмы	классификации](#байесовскиеалгоритмыклассификации)
   - [Линии уровня нормального распределения](#линииуровнянормальногораспределения)
   - [Наивный байессовский классификатор](#наивный-байессовский-классификатор)
+  - [Подстановочный (Plug-in) алгоритм](#Подстановочный-(Plug-in)-алгоритм)
+  - [Линейный дискриминант Фишера (ЛДФ)](#Линейный-дискриминант-Фишера-(ЛДФ))
+
   # Метрические классификаторы
    ## Алгоритм K ближайших соседей
    
@@ -527,13 +530,211 @@
       res <- res + log(p)
     }
     return(res)
-  }
+   }
    ```
   
-  ### Пример
-  ![](./images/naiveclass.png)
+   ### Пример
+   ![](./images/naiveclass.png)
 
-  [Здесь](https://korolev.shinyapps.io/naivebayes/) можно ознакомиться с реализацией на shiny.
+   [Здесь](https://korolev.shinyapps.io/naivebayes/) можно ознакомиться с реализацией на shiny.
+
+   ## Подстановочный (Plug-in) алгоритм
+   ### Описание алгоритма
+   Подстановочный алгоритм заключается в том, что <b>μ<sub>y</sub></b>, <b>Σ<sub>y</sub></b> для каждого из классов обучающей выборки и подстановке полученных значений в формулу оптимального байессовского классификатора:
+
+   ![](./images/optbayes.png)
+
+   Построим обучающую выборку с помощью функции многомерного нормального распределения MVRNORM библиотеки MASS.
+
+   ```r
+   xc1 <- mvrnorm(n=n, mu = mu1i, Sigma = sigma1i)
+   xc2 <- mvrnorm(n=m, mu = mu2i, Sigma = sigma2i)
+   #n - количество признаков
+   #mu - мат. ожидание
+   #Sigma - положительно-определенная ковариационная матрица
+   ```
+   
+   По полученной выборке восстановим <b>μ<sub>y</sub></b>, <b>Σ<sub>y</sub></b> по следующим формулам:
+
+   ![](./images/pluginmu.png)
+
+   ![](./images/pluginsigma.png)
+
+   ```r
+   estimateMu <- function(xs) 
+   {
+    l <- dim(xs)[2]
+    res <- matrix(NA, 1, l)
+    for (i in seq(l)) {
+      res[1, i] <- mean(xs[,i])
+    }
+    return(res)
+   }
+
+   estimateSigma <- function(xs, mu) 
+   {
+    rows <- dim(xs)[1]
+    cols <- dim(xs)[2]
+
+    res <- matrix(0, cols, cols)
+    for (i in seq(rows)) 
+    {
+      res <- res + t(xs[i,] - mu) %*% (xs[i,] - mu)
+    }
+
+    return(res/(rows - 1))
+   }
+   ```
+   
+   По полученным значениям построим карту классификации и разделяющую поверхность между классами:
+   ```r
+   plugin <- function(x, y, mu, cv, n, prior) 
+   {
+    res <- log(prior) - n/2*log(2*pi)
+    
+    x0 <- mu[1]
+    y0 <- mu[2]
+    
+    det <- det(cv)
+    cv <- solve(cv)
+    
+    a <- cv[1, 1]
+    b <- cv[1, 2]
+    c <- cv[2, 1]
+    d <- cv[2, 2]
+    
+    A <- a
+    B <- d
+    C <- b+c
+    D <- -2*a*x0 - c*y0 - b*y0
+    E <- -2*d*y0 - c*x0 - b*x0
+    F <- a*x0*x0 + d*y0*y0 + b*x0*y0 + c*x0*y0
+    
+    res <- res - 0.5 * log(det) - 0.5 * (x^2*A + y^2*B + x*y*C + x*D + y*E + F)
+    
+    return(res)
+   }
+  
+   x <- seq(plotxmin-5, plotxmax+5, len = 100)
+   y <- seq(plotymin-5, plotymax+5, len = 100)
+
+   #Карта классификации
+   #n - количество элементов первого класса
+   #m -количество элементов второго класса
+   for (i in x) {
+      for (j in y) {
+        res1 <- plugin(i, j, mu1, sigma1, n, prior1)
+        res2 <- plugin(i, j, mu2, sigma2, m, prior2)
+        color <- ifelse(res1 > res2, colors[1], colors[2])
+        points(i, j, pch = 21, col = color)
+      }
+    }
+   ```
+
+   [Здесь](https://korolev.shinyapps.io/plugin/) можно ознакомиться с реализацией на shiny.
+
+   ### Примеры
+
+   Эллипс | Прямая | Гипербола
+   :-----:|:-----:|:-----:
+   ![](./images/pluginellips.png)|![](./images/pluginline.png)|![](./images/plugingiper.png)
+
+   ## Линейный дискриминант Фишера (ЛДФ)
+   ### Описание алгоритма
+   
+   Этот алгоритм основывается на предположении, что ковариационные матрицы классов равны. Таким образом разделяющая поверхность будет прямой, а не квадратичной как это было в plug-in алгоритме.
+   
+   Тогда функция оптимального байессовского классификатора 
+   
+   ![](./images/optbayes.png)
+
+   будет иметь следующий вид:
+
+   ![](./images/ldfformula.png)
+
+   Построим обучающую выборку также, как в plug-in алгоритме.
+   По полученной выборке восстановим <b>μ<sub>y</sub></b>, <b>Σ<sub>y</sub></b> по следующим формулам:
+
+   ![](./images/ldfmu.png)
+
+   ![](./images/ldfsigma.png)
+   
+   ```r
+    estimateMu <- function(xs) 
+    {
+      l <- dim(xs)[2]
+      res <- matrix(NA, 1, l)
+      for (i in seq(l)) {
+        res[1, i] <- mean(xs[,i])
+      }
+      return(res)
+    }
+
+    estimateSigma <- function(xs1, mu1, xs2, mu2) 
+    {
+      rows1 <- dim(xs1)[1]
+      cols <- dim(xs1)[2]
+      rows2 <- dim(xs2)[1]
+      res <- matrix(0, cols, cols)
+      for (i in seq(rows1)) {
+        res <- res + t(xs1[i,] - mu1) %*% (xs1[i,] - mu1)
+      }
+      for (i in seq(rows2)) {
+        res <- res + t(xs2[i,] - mu2) %*% (xs2[i,] - mu2)
+      }
+      return(res/(rows1 + rows2 + 2))
+    }
+   ```
+
+   Теперь построим разделяющую поверхность и карту классификации для заданной выборки с учетом того, что ковариационные матрицы классов равны:
+   ```r
+    ldf <- function(x, y, mu, cv) 
+    {
+      x0 <- mu[1]
+      y0 <- mu[2]
+      det <- det(cv)
+      cv <- solve(cv)
+      a <- cv[1, 1]
+      b <- cv[1, 2]
+      c <- cv[2, 1]
+      d <- cv[2, 2]
+      
+      A <- a
+      B <- d
+      C <- b+c
+      D <- -2*a*x0 - c*y0 - b*y0
+      E <- -2*d*y0 - c*x0 - b*x0
+      F <- a*x0*x0 + d*y0*y0 + b*x0*y0 + c*x0*y0
+      
+      res <- -0.5 * (x^2*A + y^2*B + x*y*C + x*D + y*E + F)
+      return(res)
+    }
+
+    for (i in x) {
+      for (j in y) {
+        res1 <- ldf(i, j, mu1, sigma1)
+        res2 <- ldf(i, j, mu2, sigma1)
+        color <- ifelse(res1 > res2, colors[1], colors[2])
+        points(i, j, pch = 21, col = color)
+      }
+    }
+   ```
+
+   Для оценки точности классификации подсчитаем риск.
+   ```r
+   risk <- function(mu1, mu2, sigma) 
+   {
+    mah <- -0.5 * (mu1 - mu2) %*% solve(sigma) %*% t(mu1 - mu2)
+    res <- (1/(sqrt(2*pi))) * exp(-1 * ((mah - 0)^2)/2)
+    return (res)
+   }
+   ```
+
+   Пример:
+  
+   ![](./images/ldfpic.png)
+
+   [Здесь](https://korolev.shinyapps.io/ldfbayes/) можно ознакомиться с реализацией на shiny.
 
   
 
