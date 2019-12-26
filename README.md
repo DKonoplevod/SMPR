@@ -590,7 +590,7 @@
    
    По полученным значениям построим карту классификации и разделяющую поверхность между классами:
    ```r
-   plugin <- function(x, y, mu, cv, n, prior) 
+   getRes <- function(x, y, mu, cv, n, prior) 
    {
     res <- log(prior) - n/2*log(2*pi)
     
@@ -616,6 +616,14 @@
     
     return(res)
    }
+
+   plugin <- function(x, y, mu1, mu2, sigma1, sigma2, n, m, prior1, prior2, colors)
+   {
+      res1 <- getRes(i, j, mu1, sigma1, n, prior1)
+      res2 <- getRes(i, j, mu2, sigma2, m, prior2)
+      color <- ifelse(res1 > res2, colors[1], colors[2])
+      return (color)
+   }
   
    x <- seq(plotxmin-5, plotxmax+5, len = 100)
    y <- seq(plotymin-5, plotymax+5, len = 100)
@@ -625,9 +633,7 @@
    #m -количество элементов второго класса
    for (i in x) {
       for (j in y) {
-        res1 <- plugin(i, j, mu1, sigma1, n, prior1)
-        res2 <- plugin(i, j, mu2, sigma2, m, prior2)
-        color <- ifelse(res1 > res2, colors[1], colors[2])
+        color <- plugin(i, j, mu1, mu2, sigma1, sigma2, n, m, prior1, prior2, colors)
         points(i, j, pch = 21, col = color)
       }
     }
@@ -690,7 +696,7 @@
 
    Теперь построим разделяющую поверхность и карту классификации для заданной выборки с учетом того, что ковариационные матрицы классов равны:
    ```r
-    ldf <- function(x, y, mu, cv) 
+    getRes <- function(x, y, mu, cv) 
     {
       x0 <- mu[1]
       y0 <- mu[2]
@@ -711,11 +717,17 @@
       return(res)
     }
 
+    ldf <- function(x, y, mu1, mu2, sigma, colors) 
+    {
+      res1 <- ldf(x, y, mu1, sigma)
+      res2 <- ldf(x, y, mu2, sigma)
+      color <- ifelse(res1 > res2, colors[1], colors[2])
+      return (color)
+    }
+
     for (i in x) {
       for (j in y) {
-        res1 <- ldf(i, j, mu1, sigma1)
-        res2 <- ldf(i, j, mu2, sigma1)
-        color <- ifelse(res1 > res2, colors[1], colors[2])
+        ldf(i, j, mu1, mu2, sigma1, colors)
         points(i, j, pch = 21, col = color)
       }
     }
