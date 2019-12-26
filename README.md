@@ -719,8 +719,8 @@
 
     ldf <- function(x, y, mu1, mu2, sigma, colors) 
     {
-      res1 <- ldf(x, y, mu1, sigma)
-      res2 <- ldf(x, y, mu2, sigma)
+      res1 <- getRes(x, y, mu1, sigma)
+      res2 <- getRes(x, y, mu2, sigma)
       color <- ifelse(res1 > res2, colors[1], colors[2])
       return (color)
     }
@@ -747,6 +747,11 @@
   
    ![](./images/ldfpic.png)
 
+   Демонстрация | Риск
+   :-----:|:-----:
+   ![](./images/risk1.png)| 0.023
+   ![](./images/risk2.png)| 0.000007
+   
    [Здесь](https://korolev.shinyapps.io/ldfbayes/) можно ознакомиться с реализацией на shiny.
 
   # Линейные алгоритмы классификации
